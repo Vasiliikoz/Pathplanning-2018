@@ -78,6 +78,27 @@ SearchResult ISearch::startSearch(ILogger *Logger, const Map &map, const Environ
             }
         }
         lppath.push_front(start_vertex);
+        std::pair<int, int> vctr;
+        int step = 0;
+        Node prev(start_vertex);
+        for (auto it = lppath.begin(); it != lppath.end(); it++) {
+            step++;
+            if (step == 1) {
+                vctr.first = prev.i - it->i;
+                vctr.second = prev.j - it->j;
+                prev = *it;
+            } else {
+                std::pair<int, int> vctr2;
+                vctr2.first = prev.i - it->i;
+                vctr2.second = prev.j - it->j;
+                if (vctr != vctr2) {
+                    hppath.push_back(prev);
+                }
+                vctr = vctr2;
+                prev = *it;
+            }
+        }
+        hppath.push_back(end_vertex);
         sresult.hppath = &hppath; //Here is a constant pointer
         sresult.lppath = &lppath;
     }
