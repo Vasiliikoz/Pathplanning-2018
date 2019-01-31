@@ -11,7 +11,6 @@ ISearch::~ISearch(void) {}
 
 SearchResult ISearch::startSearch(ILogger *Logger, const Map &map, const EnvironmentOptions &options)
 {
-    //need to implement
     auto start = std::chrono::system_clock::now();
     std::srand(std::time(nullptr));
     Node start_vertex = map.GetStart();
@@ -20,9 +19,11 @@ SearchResult ISearch::startSearch(ILogger *Logger, const Map &map, const Environ
     CLOSED closed;
     int64_t number_of_steps = 0, node_created = 0;
     opened.insert(start_vertex);
+    sresult.pathlength = 0;
     while (opened.notempty()) {
         Node a = opened.erase_minimum();
         closed.insert(a);
+        node_created++;
         if (a.i == end_vertex.i && a.j == end_vertex.j) {
             sresult.pathlength = a.F;
             break;
@@ -32,29 +33,26 @@ SearchResult ISearch::startSearch(ILogger *Logger, const Map &map, const Environ
         for (auto i = lst.begin(); i != lst.end(); i++) {
             Node b(i->i, i->j, calc_dist(*i, a) + a.F, computeHFromCellToCell(i->i, i->j, end_vertex.i, end_vertex.j, options), a.i, a.j);
             if (!closed.find(b)){
-                opened.new_value(b);
-            } else {
-                node_created++;
+                node_created += opened.new_value(b);
             }
         }
     }
     sresult.pathfound = (closed.find(end_vertex));
-    std::cout<< sresult.pathlength << "\n";
-    //sresult.nodescreated =  ;
     sresult.numberofsteps = number_of_steps;
     sresult.nodescreated = node_created;
     auto end = std::chrono::system_clock::now();
     sresult.time = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()) / 1000000000;
-    //sresult.time = ;
     if (sresult.pathfound) {
         Node pos;
         pos.i = end_vertex.i;
         pos.j = end_vertex.j;
+        pos.g = sresult.pathlength;
         while (pos != start_vertex) {
             lppath.push_front(pos);
             Node nxt = closed.find1(pos);
             pos.i = nxt.previous_i;
             pos.j = nxt.previous_j;
+            pos.g = nxt.F;
         }
         lppath.push_front(start_vertex);
         auto end = std::chrono::system_clock::now();
@@ -152,7 +150,6 @@ std::list<Node> ISearch::findSuccessors(Node curNode, const Map &map, const Envi
 
 double ISearch::computeHFromCellToCell(int i1, int j1, int i2, int j2, const EnvironmentOptions &options)
 {
-    //need to implement
     if (options.metrictype == CN_SP_MT_DIAG) {
         return sqrt(static_cast<double>((i1 - i2) * (i1 - i2) + (j1 - j2) * (j1 - j2))) * hweight;
     } else if (options.metrictype == CN_SP_MT_MANH) {

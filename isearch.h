@@ -74,7 +74,7 @@ class ISearch
             treap * l, * r;
             double fun;
             treap() { }
-            treap (Node value, int p){
+            treap (Node value, size_t p){
                 val = value;
                 prior = p;
                 l = nullptr;
@@ -155,7 +155,6 @@ class ISearch
                 std::cout << "!nl\n";
                 return;
             }
-            //std::cout << t->val.i << " " << t->val.j << "\n";
             if (cmp(it->val, val)) {
                 merge (it, it->l, it->r);
             } else {
@@ -182,7 +181,7 @@ class ISearch
                 if (cmp1(it->r->fun,d))
                     return find_min(it->r);
             std::cout << "\n";
-            std::cout << "!!!\n";
+            std::cout << "find_min\n";
             std::cout << "\n";
             return Node();
         }
@@ -276,14 +275,14 @@ class ISearch
                 Node a = p.find_min(head);
                 std::cout<< a.i << " " << a.j << "\n";
             }
-            void new_value(Node a){
+            int new_value(Node a){
                 ISearch p;
-                //std::cout << "try " << a.i << " " << a.j << " " << a.F << "\n";
                 bool b = p.new_value(head, a);
                 if (!b) {
-                    //std::cout << "dones " << a.i << " " << a.j << " " << a.F << "\n";
                     this->insert(a);
+                    return 1;
                 }
+                return 0;
             }
             bool find(Node a){
                 ISearch p;
@@ -302,7 +301,6 @@ class ISearch
                 iter it = new treap(a, std::rand());
                 ISearch p;
                 p.insert(head, it);
-                //std::cout << head->val.i << " " << head->val.j << "\n";
             }
             void outp(){
                 ISearch p;
