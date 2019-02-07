@@ -46,7 +46,7 @@ class ISearch
 
 
         //double computeHFromCellToCell(int start_i, int start_j, int fin_i, int fin_j, const EnvironmentOptions &options) {return 0;}
-        std::list<Node> findSuccessors(Node curNode, const Map &map, const EnvironmentOptions &options);
+        std::vector<Node> findSuccessors(Node curNode, const Map &map, const EnvironmentOptions &options);
         double calc_dist(Node first_vertex, Node second_vertex);
         double computeHFromCellToCell(int i1, int j1, int i2, int j2, const EnvironmentOptions &options);
         //void makePrimaryPath(Node curNode);//Makes path using back pointers
@@ -288,56 +288,27 @@ class ISearch
                 ISearch p;
                 return p.find(head, a);
             }
+            Node find1(Node a){
+                ISearch p;
+                return p.find1(head, a);
+            }
         };
 
         class CLOSED{
         private:
-            iter head;
+            std::vector<OPENED> vctr;
         public:
-            CLOSED(){
-                head = nullptr;
+            CLOSED(int a) {
+                vctr.resize(a);
             }
             void insert(Node a){
-                iter it = new treap(a, std::rand());
-                ISearch p;
-                p.insert(head, it);
-            }
-            void outp(){
-                ISearch p;
-                p.outp(this->head);
-            }
-            void mm(){
-                if (head != nullptr)
-                    std::cout << head->val.i << " " << head->val.j << " " << head->fun << "\n";
-            }
-            void erase(Node a){
-                ISearch p;
-                p.erase(head, a);
-            }
-            Node erase_minimum(){
-                ISearch p;
-                Node a = p.find_min(head);
-                p.erase(head, a);
-                return a;
-            }
-            void minm(){
-                ISearch p;
-                Node a = p.find_min(head);
-                std::cout<< a.i << " " << a.j << "\n";
-            }
-            void new_value(Node a){
-                ISearch p;
-                bool b = p.new_value(head, a);
-                if (!b)
-                    this->insert(a);
+                vctr[a.i].insert(a);
             }
             bool find(Node a){
-                ISearch p;
-                return p.find(head, a);
+                return vctr[a.i].find(a);
             }
-            Node find1(Node a){
-                ISearch p;
-                return p.find1(head, a);
+            Node find1(Node a) {
+                return vctr[a.i].find1(a);
             }
         };
 

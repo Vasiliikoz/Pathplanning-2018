@@ -16,7 +16,7 @@ SearchResult ISearch::startSearch(ILogger *Logger, const Map &map, const Environ
     Node start_vertex = map.GetStart();
     Node end_vertex = map.GetEnd();
     OPENED opened;
-    CLOSED closed;
+    CLOSED closed((map.getMapWidth() > map.getMapHeight())? map.getMapWidth():map.getMapHeight());
     int64_t number_of_steps = 0, node_created = 0;
     opened.insert(start_vertex);
     sresult.pathlength = 0;
@@ -84,9 +84,9 @@ SearchResult ISearch::startSearch(ILogger *Logger, const Map &map, const Environ
     return sresult;
 }
 
-std::list<Node> ISearch::findSuccessors(Node curNode, const Map &map, const EnvironmentOptions &options)
+std::vector<Node> ISearch::findSuccessors(Node curNode, const Map &map, const EnvironmentOptions &options)
 {
-    std::list<Node> successors;
+    std::vector<Node> successors;
     bool left = 0, right = 0, up = 0, down = 0;
     if (map.CellOnGrid(curNode.i - 1, curNode.j))
         if (map.CellIsTraversable(curNode.i - 1, curNode.j)) {
