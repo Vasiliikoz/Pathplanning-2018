@@ -23,36 +23,19 @@ class ISearch
         SearchResult startSearch(ILogger *Logger, const Map &Map, const EnvironmentOptions &options);
 
     protected:
-        //CODE HERE
-        //Try to split class functionality to the methods that can be re-used in successors classes,
-        //e.g. classes that realize A*, JPS, Theta* algorithms
-
-        //Hint 1. You definetely need class variables for OPEN and CLOSE
-
-        //Hint 2. It's a good idea to define a heuristic calculation function, that will simply return 0
-        //for non-heuristic search methods like Dijkstra
-
-        //Hint 3. It's a good idea to define function that given a node (and other stuff needed)
-        //will return it's sucessors, e.g. unordered list of nodes
-
-        //Hint 4. It's a good idea to define a resetParent function that will be extensively used for Theta*
-        //and for A*/Dijkstra/JPS will exhibit "default" behaviour
-
-        //Hint 5. The last but not the least: working with OPEN and CLOSE is the core
-        //so think of the data structures that needed to be used, about the wrap-up classes (if needed)
-        //Start with very simple (and ineffective) structures like list or vector and make it work first
-        //and only then begin enhancement!
-
 
 
         //double computeHFromCellToCell(int start_i, int start_j, int fin_i, int fin_j, const EnvironmentOptions &options) {return 0;}
         std::vector<Node> findSuccessors(Node curNode, const Map &map, const EnvironmentOptions &options);
         double calc_dist(Node first_vertex, Node second_vertex);
+        double calc_distfortheta(Node first_vertex, Node second_vertex);
         double computeHFromCellToCell(int i1, int j1, int i2, int j2, const EnvironmentOptions &options);
-        //void makePrimaryPath(Node curNode);//Makes path using back pointers
-        //void makeSecondaryPath();//Makes another type of path(sections or points)
+        void make_hppath(Node start_vertex, Node end_vertex);
+        bool is_parent(Node first, Node second, const Map &map);
+        void ret_lp_parent(Node first, Node second, std::list<Node> &ans);
+        void make_hppath_theta(Node first, Node second, std::list<Node> &ans, std::list<Node> &cur);
         //Node resetParent(Node current, Node parent, const Map &map, const EnvironmentOptions &options) {return current;}//need for Theta*
-
+        int                             search_par;
         SearchResult                    sresult;
         std::list<Node>                 lppath, hppath;
         double                          hweight;//weight of h-value
@@ -68,18 +51,38 @@ class ISearch
                 return true;
             return false;
         }
+        struct cmp_str{
+            double F, H;
+            bool br;
+            cmp_str() {}
+            cmp_str(double a, double b, bool brk) {
+                F = a;
+                H = b;
+                br = brk;
+            }
+            bool operator< (cmp_str other) {
+                if (abs(this->F + this->H - (other.F + other.H)) < 0.000000001) {
+                    if (this->br)
+                        return this->F < other.F;
+                    return this->H < other.H;
+                } else {
+                    return (this->F + this->H < other.F + other.H);
+                }
+            }
+        };
+
         struct treap {
             Node val;
             size_t prior;
             treap * l, * r;
-            double fun;
+            cmp_str fun;
             treap() { }
             treap (Node value, size_t p){
                 val = value;
                 prior = p;
                 l = nullptr;
                 r = nullptr;
-                fun = value.F + value.H;
+                cmp_str fun(value.F,value.H, value.brk);
             }
         };
         typedef treap * iter;
@@ -87,7 +90,7 @@ class ISearch
         void new_fun(iter & it){
             if (it == nullptr)
                 return;
-            double mn = it->val.F + it->val.H;
+            cmp_str mn(it->val.F,it->val.H, it->val.brk);
             if (it->l != nullptr)
                 if (it->l->fun < mn)
                     mn = it->l->fun;
@@ -166,12 +169,13 @@ class ISearch
             }
             new_fun(it);
         }
-        bool cmp1(double d1, double d2){
-            return (abs(d1 - d2) < EPS);
+        bool cmp1(cmp_str &d1, cmp_str &d2){
+            return (abs(d1.F - d2.F) + abs(d1.H - d2.H)< EPS);
         }
         Node find_min(iter it) {
-            double d = it->fun;
-            if (cmp1(it->fun,it->val.F + it->val.H))
+            cmp_str d = it->fun;
+            cmp_str n_w(it->val.F,it->val.H, it->val.brk);
+            if (cmp1(it->fun, n_w))
                 return it->val;
             if (it->l != nullptr) {
                 if (cmp1(it->l->fun,d))
@@ -224,15 +228,11 @@ class ISearch
             return b;
         }
 
-        void outp(iter it){
-            if (it == nullptr) {
-                std::cout << "null\n";
-            } else {
-                std::cout << it->val.i << " " << it->val.j << "\n";
-                std::cout << "left\n";
-                outp(it->l);
-                std::cout << "right\n";
-                outp(it->r);
+        void outp(iter it, std::vector<Node> &v){
+            if (it != nullptr) {
+                v.push_back(it->val);
+                outp(it->l, v);
+                outp(it->r, v);
             }
         }
 
@@ -251,14 +251,6 @@ class ISearch
                 ISearch p;
                 p.insert(head, it);
                 //std::cout << head->val.i << " " << head->val.j << "\n";
-            }
-            void outp(){
-                ISearch p;
-                p.outp(this->head);
-            }
-            void mm(){
-                if (head != nullptr)
-                    std::cout << head->val.i << " " << head->val.j << " " << head->fun << "\n";
             }
             void erase(Node a){
                 ISearch p;
@@ -292,6 +284,10 @@ class ISearch
                 ISearch p;
                 return p.find1(head, a);
             }
+            void output(std::vector<Node> &v){
+                ISearch p;
+                p.outp(head, v);
+            }
         };
 
         class CLOSED{
@@ -309,6 +305,11 @@ class ISearch
             }
             Node find1(Node a) {
                 return vctr[a.i].find1(a);
+            }
+            void output(std::vector<Node> &v) {
+                for (int i = 0; i < vctr.size(); i++) {
+                    vctr[i].output(v);
+                }
             }
         };
 

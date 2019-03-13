@@ -25,7 +25,8 @@ SOURCES += \
     config.cpp \
     astar.cpp \
     main.cpp \
-    environmentoptions.cpp
+    environmentoptions.cpp \
+    theta.cpp
 
 HEADERS += \
     tinyxml2.h \
@@ -40,4 +41,5 @@ HEADERS += \
     config.h \
     astar.h \
     searchresult.h \
-    environmentoptions.h
+    environmentoptions.h \
+    theta.h

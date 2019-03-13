@@ -124,14 +124,49 @@ void XmlLogger::writeToLogMap(const Map &map, const std::list<Node> &path)
     }
 }
 
-/*void XmlLogger::writeToLogOpenClose(const typename &open, const typename &close)
+void XmlLogger::writeToLogOpenClose(const std::vector<Node> &open, const std::vector<Node> &close, unsigned int n)
 {
-    //need to implement
-    if (loglevel != CN_LP_LEVEL_FULL_WORD  && !(loglevel == CN_LP_LEVEL_MEDIUM_WORD && last))
-        return;
+    XMLElement *lplevel = doc.FirstChildElement(CNS_TAG_ROOT);
+    lplevel = lplevel->FirstChildElement(CNS_TAG_LOG)->FirstChildElement(CNS_TAG_LOWLEVEL);
+
+    XMLElement *element  = doc.NewElement(CNS_TAG_STEP);
+    element->SetAttribute(CNS_TAG_ATTR_NUM, n);
+    lplevel->InsertEndChild(element);
+
+    lplevel = lplevel->LastChildElement();
+    lplevel->InsertEndChild(doc.NewElement(CNS_TAG_OPEN));
 
 
-}*/
+    for (size_t i = 0; i < open.size(); i++) {
+        element = doc.NewElement(CNS_TAG_POINT);
+        element->SetAttribute(CNS_TAG_ATTR_X, open[i].j);
+        element->SetAttribute(CNS_TAG_ATTR_Y, open[i].i);
+        element->SetAttribute(CNS_TAG_ATTR_G, open[i].F);
+        element->SetAttribute(CNS_TAG_ATTR_F, open[i].H);
+        if (open[i].F > 0) {
+            element->SetAttribute(CNS_TAG_ATTR_PARX, open[i].previous_i);
+            element->SetAttribute(CNS_TAG_ATTR_PARY, open[i].previous_j);
+        }
+        lplevel->LastChildElement()->InsertEndChild(element);
+    }
+
+
+    lplevel->InsertEndChild(doc.NewElement(CNS_TAG_CLOSE));
+
+
+    for (size_t i = 0; i < close.size(); i++) {
+        element = doc.NewElement(CNS_TAG_POINT);
+        element->SetAttribute(CNS_TAG_ATTR_X, close[i].j);
+        element->SetAttribute(CNS_TAG_ATTR_Y, close[i].i);
+        element->SetAttribute(CNS_TAG_ATTR_G, close[i].F);
+        element->SetAttribute(CNS_TAG_ATTR_F, close[i].H);
+        if (close[i].F > 0) {
+            element->SetAttribute(CNS_TAG_ATTR_PARX, close[i].previous_i);
+            element->SetAttribute(CNS_TAG_ATTR_PARY, close[i].previous_j);
+        }
+        lplevel->LastChildElement()->InsertEndChild(element);
+    }
+}
 
 void XmlLogger::writeToLogPath(const std::list<Node> &path)
 {
@@ -169,11 +204,8 @@ void XmlLogger::writeToLogHPpath(const std::list<Node> &hppath)
         ++iter;
         part->SetAttribute(CNS_TAG_ATTR_FINX, iter->j);
         part->SetAttribute(CNS_TAG_ATTR_FINY, iter->i);
-        double sqr2 = 1.414213562;
-        double dis = (it->j - iter->j)*sqr2;
-        if (it->j == iter->j || it->i == iter->i)
-            dis = abs(it->j - iter->j + it->i - iter->i);
-        part->SetAttribute(CNS_TAG_ATTR_LENGTH, dis);
+        double dis = (it->j - iter->j)*(it->j - iter->j) + (it->i - iter->i)*(it->i - iter->i);
+        part->SetAttribute(CNS_TAG_ATTR_LENGTH, sqrt(dis));
         hplevel->LinkEndChild(part);
         ++it;
         ++partnumber;

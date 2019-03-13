@@ -1,5 +1,6 @@
 #include "mission.h"
 #include "astar.h"
+#include "theta.h"
 #include "dijkstra.h"
 #include "xmllogger.h"
 #include "gl_const.h"
@@ -64,6 +65,8 @@ void Mission::createSearch()
         search = new Dijkstra();
     else if (config.SearchParams[CN_SP_ST] == CN_SP_ST_ASTAR)
         search = new Astar(config.SearchParams[CN_SP_HW], config.SearchParams[CN_SP_BT]);
+    else if (config.SearchParams[CN_SP_ST] == CN_SP_ST_TH)
+        search = new Theta(config.SearchParams[CN_SP_HW], config.SearchParams[CN_SP_BT]);
     //else if (config.SearchParams[CN_SP_ST] == CN_SP_ST_JP_SEARCH)
     //    search = new JP_Search(config.SearchParams[CN_SP_HW], config.SearchParams[CN_SP_BT]);
     //else if (config.SearchParams[CN_SP_ST] == CN_SP_ST_TH)

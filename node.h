@@ -20,7 +20,7 @@ struct Node
     //double * iter_dist;//temporary
     double F; //f-, g- and h-values of the search node
     double H;
-    double g;
+    bool brk;
     int previous_i, previous_j;
     Node (){}
     Node (int x, int y) {

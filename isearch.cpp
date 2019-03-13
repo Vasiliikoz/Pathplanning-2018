@@ -1,5 +1,6 @@
 #include "isearch.h"
 
+
 ISearch::ISearch()
 {
     hweight = 1;
@@ -14,16 +15,27 @@ SearchResult ISearch::startSearch(ILogger *Logger, const Map &map, const Environ
     auto start = std::chrono::system_clock::now();
     std::srand(std::time(nullptr));
     Node start_vertex = map.GetStart();
+    start_vertex.brk = breakingties;
     Node end_vertex = map.GetEnd();
+    end_vertex.brk = breakingties;
     OPENED opened;
     CLOSED closed((map.getMapWidth() > map.getMapHeight())? map.getMapWidth():map.getMapHeight());
-    int64_t number_of_steps = 0, node_created = 0;
+    unsigned int number_of_steps = 0, node_created = 0;
     opened.insert(start_vertex);
     sresult.pathlength = 0;
+    if (search_par == 0) {
     while (opened.notempty()) {
+        if (Logger->loglevel == CN_LP_LEVEL_FULL_WORD) {
+            std::vector<Node> op;
+            op.reserve(node_created + 1);
+            opened.output(op);
+            std::vector<Node> cl;
+            cl.reserve(number_of_steps + 1);
+            closed.output(cl);
+            Logger->writeToLogOpenClose(op, cl, number_of_steps);
+        } 
         Node a = opened.erase_minimum();
         closed.insert(a);
-        node_created++;
         if (a.i == end_vertex.i && a.j == end_vertex.j) {
             sresult.pathlength = a.F;
             break;
@@ -32,10 +44,59 @@ SearchResult ISearch::startSearch(ILogger *Logger, const Map &map, const Environ
         auto lst = findSuccessors(a, map, options);
         for (auto i = lst.begin(); i != lst.end(); i++) {
             Node b(i->i, i->j, calc_dist(*i, a) + a.F, computeHFromCellToCell(i->i, i->j, end_vertex.i, end_vertex.j, options), a.i, a.j);
+            b.brk = breakingties;
             if (!closed.find(b)){
                 node_created += opened.new_value(b);
             }
         }
+    }
+    } else {
+
+        while (opened.notempty()) {
+            if (Logger->loglevel == CN_LP_LEVEL_FULL_WORD) {
+                std::vector<Node> op;
+                op.reserve(node_created + 1);
+                opened.output(op);
+                std::vector<Node> cl;
+                cl.reserve(number_of_steps + 1);
+                closed.output(cl);
+                Logger->writeToLogOpenClose(op, cl, number_of_steps);
+            }
+            Node a = opened.erase_minimum();
+            closed.insert(a);
+            if (a.i == end_vertex.i && a.j == end_vertex.j) {
+                sresult.pathlength = a.F;
+                break;
+            }
+            number_of_steps++;
+            auto lst = findSuccessors(a, map, options);
+            for (auto i = lst.begin(); i != lst.end(); i++) {
+                Node b_n(i->i, i->j);
+                if (closed.find(b_n))
+                    continue;
+                Node parent_a(a.previous_i, a.previous_j);
+                if (is_parent(parent_a, *i, map)) {
+                    parent_a = closed.find1(parent_a);
+                    Node b(i->i, i->j, calc_distfortheta(*i, parent_a) + parent_a.F, computeHFromCellToCell(i->i, i->j, end_vertex.i, end_vertex.j, options), parent_a.i, parent_a.j);
+                    b.brk = breakingties;
+                    node_created += opened.new_value(b);
+                } else {
+                    Node b(i->i, i->j, calc_dist(*i, a) + a.F, computeHFromCellToCell(i->i, i->j, end_vertex.i, end_vertex.j, options), a.i, a.j);
+                    b.brk = breakingties;
+                    node_created += opened.new_value(b);
+                }
+            }
+        }
+
+    }
+    if (Logger->loglevel == CN_LP_LEVEL_MEDIUM_WORD) {
+        std::vector<Node> op;
+        op.reserve(node_created + 1);
+        opened.output(op);
+        std::vector<Node> cl;
+        cl.reserve(number_of_steps + 1);
+        closed.output(cl);
+        Logger->writeToLogOpenClose(op, cl, number_of_steps);
     }
     sresult.pathfound = (closed.find(end_vertex));
     sresult.numberofsteps = number_of_steps;
@@ -46,39 +107,24 @@ SearchResult ISearch::startSearch(ILogger *Logger, const Map &map, const Environ
         Node pos;
         pos.i = end_vertex.i;
         pos.j = end_vertex.j;
-        pos.g = sresult.pathlength;
+        //pos.g = sresult.pathlength;
         while (pos != start_vertex) {
             lppath.push_front(pos);
             Node nxt = closed.find1(pos);
             pos.i = nxt.previous_i;
             pos.j = nxt.previous_j;
-            pos.g = nxt.F;
+            //pos.g = nxt.F;
         }
         lppath.push_front(start_vertex);
         auto end = std::chrono::system_clock::now();
         sresult.time = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()) / 1000000000;
-        std::pair<int, int> vctr;
-        int step = 0;
-        Node prev(start_vertex);
-        for (auto it = lppath.begin(); it != lppath.end(); it++) {
-            step++;
-            if (step == 1) {
-                vctr.first = prev.i - it->i;
-                vctr.second = prev.j - it->j;
-                prev = *it;
-            } else {
-                std::pair<int, int> vctr2;
-                vctr2.first = prev.i - it->i;
-                vctr2.second = prev.j - it->j;
-                if (vctr != vctr2) {
-                    hppath.push_back(prev);
-                }
-                vctr = vctr2;
-                prev = *it;
-            }
+        if (search_par == 0) {
+            make_hppath(start_vertex, end_vertex);
+        } else {
+            make_hppath_theta(start_vertex, end_vertex, hppath, lppath);
+            swap(lppath, hppath);
         }
-        hppath.push_back(end_vertex);
-        sresult.hppath = &hppath; //Here is a constant pointer
+        sresult.hppath = &hppath;
         sresult.lppath = &lppath;
     }
     return sresult;
@@ -164,6 +210,158 @@ double ISearch::computeHFromCellToCell(int i1, int j1, int i2, int j2, const Env
     return 0;
 }
 
+void ISearch::make_hppath(Node start_vertex, Node end_vertex)
+{
+    std::pair<int, int> vctr;
+    int step = 0;
+    Node prev(start_vertex);
+    for (auto it = lppath.begin(); it != lppath.end(); it++) {
+        step++;
+        if (step == 1) {
+            vctr.first = prev.i - it->i;
+            vctr.second = prev.j - it->j;
+            prev = *it;
+        } else {
+            std::pair<int, int> vctr2;
+            vctr2.first = prev.i - it->i;
+            vctr2.second = prev.j - it->j;
+            if (vctr != vctr2) {
+                hppath.push_back(prev);
+            }
+            vctr = vctr2;
+            prev = *it;
+        }
+    }
+    hppath.push_back(end_vertex);
+}
+
+bool ISearch::is_parent(Node first, Node second, const Map &map)
+{
+    if (first.j == second.j) {
+        int min = std::min(first.i, second.i);
+        int max = std::max(first.i, second.i);
+        for (int i = min; i <= max; i++)
+            if (map.CellIsObstacle(i, first.j))
+                return false;
+        return true;
+    }
+    if (first.i == second.i) {
+        int min = std::min(first.j, second.j);
+        int max = std::max(first.j, second.j);
+        for (int j = min; j <= max; j++)
+            if (map.CellIsObstacle(first.i, j))
+                return false;
+        return true;
+    }
+    if (first.j > second.j)
+        std::swap(first, second);
+    double k = double(second.i - first.i) / double(second.j - first.j);
+    Node p_n = first;
+    if (first.i < second.i) {
+        double b = first.i - k * first.j + k / 2 - 0.5;
+        auto func = [k, b](int x) {return k * x + b;};
+        while (p_n.i != second.i && p_n.j != second.j) {
+            if (p_n.i > func(p_n.j)) {
+                p_n.j++;
+            } else {
+                p_n.i++;
+            }
+            if (map.CellIsObstacle(p_n.i, p_n.j))
+                return false;
+        }
+    } else {
+        double b = first.i - k * first.j + k / 2 + 0.5;
+        auto func = [k, b](int x) {return k * x + b;};
+        while (p_n.i != second.i && p_n.j != second.j) {
+            if (p_n.i < func(p_n.j)) {
+                p_n.j++;
+            } else {
+                p_n.i--;
+            }
+            if (map.CellIsObstacle(p_n.i, p_n.j))
+                return false;
+        }
+    }
+    return true;
+}
+
+void ISearch::make_hppath_theta(Node first, Node second, std::list<Node> &ans, std::list<Node> &cur) {
+    Node st = *cur.begin();
+    for (auto i = cur.begin(); i != cur.end(); i++) {
+        if (((st.i + i->j == st.j + i->i) && (st.i - i->i == 1)) || ((st.i == i->i || st.j == i->j) &&
+                abs(st.i - i->i + st.j - i->j) <= 1)) {
+            st = *i;
+        } else {
+            std::list<Node> n;
+            ret_lp_parent(st, *i, n);
+            for (auto it = n.begin(); it != n.end(); it++)
+                ans.push_back(*it);
+            st = *i;
+        }
+        ans.push_back(*i);
+    }
+}
+
+void ISearch::ret_lp_parent(Node first, Node second, std::list<Node> &ans)
+{
+    if (first.j == second.j) {
+        int min = std::min(first.i, second.i);
+        int max = std::max(first.i, second.i);
+        for (int i = min; i <= max; i++)
+            ans.push_back(Node(i, first.j));
+        if (first.i > second.i)
+            ans.reverse();
+        return;
+    }
+    if (first.i == second.i) {
+        int min = std::min(first.j, second.j);
+        int max = std::max(first.j, second.j);
+        for (int j = min; j <= max; j++)
+            ans.push_back(Node(first.i, j));
+        if (first.j > second.j)
+            ans.reverse();
+        return;
+    }
+    bool b = false;
+    if (first.j > second.j) {
+        std::swap(first, second);
+        b = true;
+    }
+    double k = double(second.i - first.i) / double(second.j - first.j);
+    Node p_n = first;
+    if (first.i < second.i) {
+        double b = first.i - k * first.j + k / 2 - 0.5;
+        auto func = [k, b](int x) {return k * x + b;};
+        while (true) {
+            if (p_n.i > func(p_n.j)) {
+                p_n.j++;
+            } else {
+                p_n.i++;
+            }
+            if (p_n.i == second.i && p_n.j == second.j)
+                break;
+            ans.push_back(Node(p_n.i, p_n.j));
+        }
+    } else {
+        double b = first.i - k * first.j + k / 2 + 0.5;
+        auto func = [k, b](int x) {return k * x + b;};
+        while (true) {
+            if (p_n.i < func(p_n.j)) {
+                p_n.j++;
+            } else {
+                p_n.i--;
+            }
+            if (p_n.i == second.i && p_n.j == second.j)
+                break;
+            ans.push_back(Node(p_n.i, p_n.j));
+        }
+    }
+    if (b) {
+        ans.reverse();
+    }
+    return;
+}
+
 double ISearch::calc_dist(Node first_vertex, Node second_vertex)
 {
     if (first_vertex.i == second_vertex.i || first_vertex.j == second_vertex.j)
@@ -171,12 +369,7 @@ double ISearch::calc_dist(Node first_vertex, Node second_vertex)
     return CN_SQRT_TWO;
 }
 
-/*void ISearch::makePrimaryPath(Node curNode)
+double ISearch::calc_distfortheta(Node first_vertex, Node second_vertex)
 {
-    //need to implement
-}*/
-
-/*void ISearch::makeSecondaryPath()
-{
-    //need to implement
-}*/
+    return sqrt((first_vertex.i - second_vertex.i) * (first_vertex.i - second_vertex.i) + (first_vertex.j - second_vertex.j) * (first_vertex.j - second_vertex.j));
+}

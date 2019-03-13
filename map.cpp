@@ -27,6 +27,8 @@ Node Map::GetEnd() const
     Node vertex;
     vertex.i = this->goal_i;
     vertex.j = this->goal_j;
+    vertex.previous_i = vertex.i;
+    vertex.previous_j = vertex.j;
     vertex.F = 0;
     return vertex;
 }
@@ -36,6 +38,8 @@ Node Map::GetStart() const
     Node vertex;
     vertex.i = this->start_i;
     vertex.j = this->start_j;
+    vertex.previous_i = vertex.i;
+    vertex.previous_j = vertex.j;
     vertex.F = 0;
     vertex.H = 0;
     return vertex;
