@@ -765,7 +765,8 @@ mission.o: mission.cpp mission.h \
 		environmentoptions.h \
 		astar.h \
 		dijkstra.h \
-		xmllogger.h
+		xmllogger.h \
+		theta.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o mission.o mission.cpp
 
 map.o: map.cpp map.h \

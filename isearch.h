@@ -34,6 +34,7 @@ class ISearch
         bool is_parent(Node first, Node second, const Map &map);
         void ret_lp_parent(Node first, Node second, std::list<Node> &ans);
         void make_hppath_theta(Node first, Node second, std::list<Node> &ans, std::list<Node> &cur);
+        double HF_Theta(int i1, int j1, int i2, int j2);
         //Node resetParent(Node current, Node parent, const Map &map, const EnvironmentOptions &options) {return current;}//need for Theta*
         int                             search_par;
         SearchResult                    sresult;
@@ -214,6 +215,8 @@ class ISearch
             if (cmp(it->val, a)) {
                 if (it->val.F > a.F) {
                     it->val.F = a.F;
+                    it->val.previous_i = a.previous_i;
+                    it->val.previous_j = a.previous_j;
                     new_fun(it);
                 }
                 return true;

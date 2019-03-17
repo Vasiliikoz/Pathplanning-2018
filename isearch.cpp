@@ -50,7 +50,7 @@ SearchResult ISearch::startSearch(ILogger *Logger, const Map &map, const Environ
             }
         }
     }
-    } else {
+    } else if (search_par == 4) {
 
         while (opened.notempty()) {
             if (Logger->loglevel == CN_LP_LEVEL_FULL_WORD) {
@@ -66,22 +66,26 @@ SearchResult ISearch::startSearch(ILogger *Logger, const Map &map, const Environ
             closed.insert(a);
             if (a.i == end_vertex.i && a.j == end_vertex.j) {
                 sresult.pathlength = a.F;
+                //std::cout << sresult.pathlength << "\n";
                 break;
             }
             number_of_steps++;
             auto lst = findSuccessors(a, map, options);
             for (auto i = lst.begin(); i != lst.end(); i++) {
                 Node b_n(i->i, i->j);
+                double d = HF_Theta(i->i, i->j, end_vertex.i, end_vertex.j);
                 if (closed.find(b_n))
                     continue;
                 Node parent_a(a.previous_i, a.previous_j);
                 if (is_parent(parent_a, *i, map)) {
                     parent_a = closed.find1(parent_a);
-                    Node b(i->i, i->j, calc_distfortheta(*i, parent_a) + parent_a.F, computeHFromCellToCell(i->i, i->j, end_vertex.i, end_vertex.j, options), parent_a.i, parent_a.j);
+                    Node b(i->i, i->j, calc_distfortheta(*i, parent_a) + parent_a.F,
+                           d, parent_a.i, parent_a.j);
                     b.brk = breakingties;
                     node_created += opened.new_value(b);
                 } else {
-                    Node b(i->i, i->j, calc_dist(*i, a) + a.F, computeHFromCellToCell(i->i, i->j, end_vertex.i, end_vertex.j, options), a.i, a.j);
+                    Node b(i->i, i->j, calc_dist(*i, a) + a.F,
+                           d, a.i, a.j);
                     b.brk = breakingties;
                     node_created += opened.new_value(b);
                 }
@@ -194,10 +198,15 @@ std::vector<Node> ISearch::findSuccessors(Node curNode, const Map &map, const En
     return successors;
 }
 
+double ISearch::HF_Theta(int i1, int j1, int i2, int j2)
+{
+    return sqrt(static_cast<double>((i1 - i2) * (i1 - i2) + (j1 - j2) * (j1 - j2))) * hweight;
+}
+
 double ISearch::computeHFromCellToCell(int i1, int j1, int i2, int j2, const EnvironmentOptions &options)
 {
     if (options.metrictype == CN_SP_MT_DIAG) {
-        return sqrt(static_cast<double>((i1 - i2) * (i1 - i2) + (j1 - j2) * (j1 - j2))) * hweight;
+        return (abs(abs(i1 - i2) - abs(j1 - j2)) + SQRT2 * (std::min(abs(i1 - i2),abs(j1 - j2)))) * hweight;
     } else if (options.metrictype == CN_SP_MT_MANH) {
         return (abs(i1 - i2) + abs(j1 - j2)) * hweight;
     } else if (options.metrictype == CN_SP_MT_EUCL) {
@@ -235,55 +244,6 @@ void ISearch::make_hppath(Node start_vertex, Node end_vertex)
     hppath.push_back(end_vertex);
 }
 
-bool ISearch::is_parent(Node first, Node second, const Map &map)
-{
-    if (first.j == second.j) {
-        int min = std::min(first.i, second.i);
-        int max = std::max(first.i, second.i);
-        for (int i = min; i <= max; i++)
-            if (map.CellIsObstacle(i, first.j))
-                return false;
-        return true;
-    }
-    if (first.i == second.i) {
-        int min = std::min(first.j, second.j);
-        int max = std::max(first.j, second.j);
-        for (int j = min; j <= max; j++)
-            if (map.CellIsObstacle(first.i, j))
-                return false;
-        return true;
-    }
-    if (first.j > second.j)
-        std::swap(first, second);
-    double k = double(second.i - first.i) / double(second.j - first.j);
-    Node p_n = first;
-    if (first.i < second.i) {
-        double b = first.i - k * first.j + k / 2 - 0.5;
-        auto func = [k, b](int x) {return k * x + b;};
-        while (p_n.i != second.i && p_n.j != second.j) {
-            if (p_n.i > func(p_n.j)) {
-                p_n.j++;
-            } else {
-                p_n.i++;
-            }
-            if (map.CellIsObstacle(p_n.i, p_n.j))
-                return false;
-        }
-    } else {
-        double b = first.i - k * first.j + k / 2 + 0.5;
-        auto func = [k, b](int x) {return k * x + b;};
-        while (p_n.i != second.i && p_n.j != second.j) {
-            if (p_n.i < func(p_n.j)) {
-                p_n.j++;
-            } else {
-                p_n.i--;
-            }
-            if (map.CellIsObstacle(p_n.i, p_n.j))
-                return false;
-        }
-    }
-    return true;
-}
 
 void ISearch::make_hppath_theta(Node first, Node second, std::list<Node> &ans, std::list<Node> &cur) {
     Node st = *cur.begin();
@@ -371,5 +331,65 @@ double ISearch::calc_dist(Node first_vertex, Node second_vertex)
 
 double ISearch::calc_distfortheta(Node first_vertex, Node second_vertex)
 {
-    return sqrt((first_vertex.i - second_vertex.i) * (first_vertex.i - second_vertex.i) + (first_vertex.j - second_vertex.j) * (first_vertex.j - second_vertex.j));
+    return sqrt((first_vertex.i - second_vertex.i) * (first_vertex.i - second_vertex.i) +
+                (first_vertex.j - second_vertex.j) * (first_vertex.j - second_vertex.j));
+}
+
+
+bool ISearch::is_parent(Node first, Node second, const Map &map)
+{
+    if (first.j == second.j) {
+            int min = std::min(first.i, second.i);
+            int max = std::max(first.i, second.i);
+            for (int i = min; i <= max; i++)
+                if (map.CellIsObstacle(i, first.j))
+                    return false;
+            return true;
+        }
+        if (first.i == second.i) {
+            int min = std::min(first.j, second.j);
+            int max = std::max(first.j, second.j);
+            for (int j = min; j <= max; j++)
+                if (map.CellIsObstacle(first.i, j))
+                    return false;
+            return true;
+        }
+    if (first.j > second.j) {
+        std::swap(first, second);
+    }
+    double k = double(second.i - first.i) / double(second.j - first.j);
+    if (k == 2.0) {
+        int i = std::min(first.i, second.i);
+        for (int j = first.j; j <= second.j; j++)
+            if (map.CellIsObstacle(i++, j))
+                return false;
+        return true;
+    }
+    Node p_n = first;
+    if (first.i < second.i) {
+        double b = first.i - k * first.j + k / 2 - 0.5;
+        auto func = [k, b](int x) {return k * x + b;};
+        while (p_n.i != second.i && p_n.j != second.j) {
+            if (p_n.i > func(p_n.j)) {
+                p_n.j++;
+            } else {
+                p_n.i++;
+            }
+            if (map.CellIsObstacle(p_n.i, p_n.j))
+                return false;
+        }
+    } else {
+        double b = first.i - k * first.j + k / 2 + 0.5;
+        auto func = [k, b](int x) {return k * x + b;};
+        while (p_n.i != second.i && p_n.j != second.j) {
+            if (p_n.i < func(p_n.j)) {
+                p_n.j++;
+            } else {
+                p_n.i--;
+            }
+            if (map.CellIsObstacle(p_n.i, p_n.j))
+                return false;
+        }
+    }
+    return true;
 }
